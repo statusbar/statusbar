@@ -1,0 +1,21 @@
+[submodule "core"]
+	path = core
+	url = ../core.git
+[submodule "crypto"]
+	path = crypto
+	url = ../crypto.git
+[submodule "audio"]
+	path = audio
+	url = ../audio.git
+[submodule "avb"]
+	path = avb
+	url = ../avb.git
+[submodule "rtkernel"]
+	path = rtkernel
+	url = ../rtkernel.git
+[submodule "linuxptp4avb"]
+	path = linuxptp4avb
+	url = ../linuxptp4avb.git
+[submodule "zephyr"]
+	path = zephyr
+	url = ../zephyr.git
