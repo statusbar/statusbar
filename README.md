@@ -59,8 +59,15 @@ includes AVB/TSN-adjacent networking and measurement tooling — `udptun`
 
 ## Cloning everything
 
+Every project is included here as a git submodule, so a recursive clone of this
+umbrella pulls them all:
+
 ```sh
-for repo in core crypto audio avb rtkernel linuxptp4avb zephyr; do
-  git clone https://codeberg.org/statusbar/$repo.git
-done
+git clone --recursive https://codeberg.org/statusbar/umbrella.git
+```
+
+Already cloned without `--recursive`? Pull the submodules with:
+
+```sh
+git submodule update --init --recursive
 ```
