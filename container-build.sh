@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# Dependency-aware Debian package builder for the exported statusbar trees.
+#
+# Usage: ./container-build.sh [<pkg> ...]
+#   (no arguments)   build every package
+#   <pkg> ...        build the named packages and their dependencies;
+#                    names may be given as 'core' or 'statusbar-core'
+#
+# A package's .deb is rebuilt when its source tree is newer than the .deb,
+# or when one of its dependencies was rebuilt during this run. Output is
+# collected in deb-output/. Override the base image with DEBIAN_VERSION,
+# the container engine with CONTAINER_ENGINE, and the target architecture
+# with TARGET_PLATFORM (default linux/arm64; cross-arch needs qemu-user-static
+# registered with the host kernel's binfmt_misc).
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEB_OUTPUT="${DEB_OUTPUT:-$ROOT/deb-output}"
+export DEB_OUTPUT
+
+# Packages in dependency-first order.
+TOPO="core crypto audio avb"
+
+# Transitive dependencies of each package.
+tdeps() {
+  case "$1" in
+    core) echo "" ;;
+    crypto) echo "core" ;;
+    audio) echo "core" ;;
+    avb) echo "core crypto audio" ;;
+    *) echo "" ;;
+  esac
+}
+
+# Membership test in a space-separated set.
+has() { case " $1 " in *" $2 "*) return 0 ;; *) return 1 ;; esac ; }
+
+mkdir -p "$DEB_OUTPUT"
+
+WANT=""
+if [ "$#" -eq 0 ]; then
+  WANT=" $TOPO "
+else
+  for arg in "$@"; do
+    p="${arg#statusbar-}"
+    if ! has "$TOPO" "$p"; then
+      echo "error: unknown package '$arg'" >&2
+      exit 1
+    fi
+    WANT="$WANT $p $(tdeps "$p")"
+  done
+fi
+
+# Stale if the .deb is missing, or any source file is newer than it.
+src_newer() {
+  local pkg="$1" tree="$ROOT/$1" deb
+  deb="$(ls -1 "$DEB_OUTPUT"/statusbar-"$pkg"_*.deb 2>/dev/null | head -n1 || true)"
+  [ -z "$deb" ] && return 0
+  [ -n "$(find "$tree" -type f -newer "$deb" \
+            -not -path '*/build/*' -not -path '*/build-*/*' \
+            -not -path '*/.git/*' -print -quit)" ]
+}
+
+# One shared Debian package revision for this whole run: every package rebuilt
+# now gets the same strictly-increasing version (1.1.0-<rev>), so a redeploy
+# always upgrades (plain `apt-get install` skips a same-version reinstall, which
+# silently left a node on the old binary). Bumped only here / per run.
+export STATUSBAR_DEB_REVISION="${STATUSBAR_DEB_REVISION:-$(date -u +%Y%m%d%H%M%S)}"
+echo "=== deb revision for this run: $STATUSBAR_DEB_REVISION ==="
+
+REBUILT=""
+count=0
+for pkg in $TOPO; do
+  has "$WANT" "$pkg" || continue
+  stale=0
+  for d in $(tdeps "$pkg"); do
+    if has "$REBUILT" "$d"; then stale=1; fi
+  done
+  if [ "$stale" -eq 0 ] && ! src_newer "$pkg"; then
+    echo "$pkg: up to date"
+    continue
+  fi
+  echo "=== statusbar-$pkg: building (.deb out of date) ==="
+  "$ROOT/$pkg/scripts/container-build.sh"
+  REBUILT="$REBUILT $pkg"
+  count=$((count + 1))
+done
+echo "=== done: $count package(s) (re)built; .deb files in $DEB_OUTPUT ==="

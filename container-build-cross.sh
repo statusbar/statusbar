@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# Dependency-aware cross-compile builder for the statusbar Debian packages.
+# Native amd64 toolchain that cross-targets aarch64 via clang multi-target +
+# Debian multiarch :arm64 dev libs — no qemu emulation. Produces arm64
+# .debs much faster than the emulated path (./container-build.sh) but
+# cannot run tests (binaries don't execute on the build host).
+#
+# Usage: ./container-build-cross.sh [<pkg> ...]
+#   (no arguments)   build every package
+#   <pkg> ...        build the named packages and their dependencies;
+#                    names may be given as 'core' or 'statusbar-core'
+#
+# A package's .deb is rebuilt when its source tree is newer than the .deb,
+# or when one of its dependencies was rebuilt during this run. Output is
+# collected in deb-output/. Override the target arch with TARGET_ARCH and
+# the container engine with CONTAINER_ENGINE.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEB_OUTPUT="${DEB_OUTPUT:-$ROOT/deb-output}"
+TARGET_ARCH="${TARGET_ARCH:-arm64}"
+export DEB_OUTPUT TARGET_ARCH
+
+# Packages in dependency-first order.
+TOPO="core crypto audio avb"
+
+# Transitive dependencies of each package.
+tdeps() {
+  case "$1" in
+    core) echo "" ;;
+    crypto) echo "core" ;;
+    audio) echo "core" ;;
+    avb) echo "core crypto audio" ;;
+    *) echo "" ;;
+  esac
+}
+
+# Membership test in a space-separated set.
+has() { case " $1 " in *" $2 "*) return 0 ;; *) return 1 ;; esac ; }
+
+mkdir -p "$DEB_OUTPUT"
+
+WANT=""
+if [ "$#" -eq 0 ]; then
+  WANT=" $TOPO "
+else
+  for arg in "$@"; do
+    p="${arg#statusbar-}"
+    if ! has "$TOPO" "$p"; then
+      echo "error: unknown package '$arg'" >&2
+      exit 1
+    fi
+    WANT="$WANT $p $(tdeps "$p")"
+  done
+fi
+
+# Stale if the .deb (for this target arch) is missing, or any source file
+# is newer than it.
+src_newer() {
+  local pkg="$1" tree="$ROOT/$1" deb
+  deb="$(ls -1 "$DEB_OUTPUT"/statusbar-"$pkg"_*_"$TARGET_ARCH".deb 2>/dev/null \
+         | head -n1 || true)"
+  [ -z "$deb" ] && return 0
+  [ -n "$(find "$tree" -type f -newer "$deb" \
+            -not -path '*/build/*' -not -path '*/build-*/*' \
+            -not -path '*/.git/*' -print -quit)" ]
+}
+
+REBUILT=""
+count=0
+for pkg in $TOPO; do
+  has "$WANT" "$pkg" || continue
+  stale=0
+  for d in $(tdeps "$pkg"); do
+    if has "$REBUILT" "$d"; then stale=1; fi
+  done
+  if [ "$stale" -eq 0 ] && ! src_newer "$pkg"; then
+    echo "$pkg: up to date ($TARGET_ARCH)"
+    continue
+  fi
+  echo "=== statusbar-$pkg ($TARGET_ARCH): cross-building (.deb out of date) ==="
+  "$ROOT/$pkg/scripts/container-build-cross.sh"
+  REBUILT="$REBUILT $pkg"
+  count=$((count + 1))
+done
+echo "=== done: $count package(s) (re)built; .deb files in $DEB_OUTPUT ==="
