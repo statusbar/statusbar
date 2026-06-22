@@ -71,3 +71,75 @@ Already cloned without `--recursive`? Pull the submodules with:
 ```sh
 git submodule update --init --recursive
 ```
+
+---
+
+## Building
+
+The four C++ libraries (`core`, `crypto`, `audio`, `avb`) build together as a
+single aggregate CMake project, so you can open the umbrella as one project in
+your IDE. The build uses Clang with libc++; the bundled toolchain file picks the
+compiler up automatically.
+
+> **The toolchain file is required.** `cmake/toolchain-clang.cmake` defines the
+> shared build helpers (fuzzing, coverage, clang-tidy, sanitizers). A plain
+> `cmake -S .` without it will fail with `Unknown CMake command
+> "statusbar_register_fuzz_targets"`.
+
+### Prerequisites
+
+- **macOS:** Homebrew LLVM (`brew install llvm`) for Clang + libc++, plus
+  `brew install cmake ninja`. Linux-only components (AF_XDP, BPF) are compiled
+  out automatically.
+- **Debian/Ubuntu (incl. Raspberry Pi 5):** the stock LLVM toolchain and dev
+  libraries:
+  ```sh
+  sudo apt install clang clang-tools clangd lld llvm libc++-dev libc++abi-dev \
+      cmake ninja-build ccache pkg-config \
+      libasound2-dev libbpf-dev libxdp-dev libelf-dev zlib1g-dev
+  ```
+
+### Quick build
+
+```sh
+./local-build.sh            # configure + build + ctest, into ./build
+BUILD_DIR=build-rel ./local-build.sh -DCMAKE_BUILD_TYPE=Release
+```
+
+`local-build.sh` is a thin wrapper around:
+
+```sh
+cmake -G Ninja -B build -S . --toolchain cmake/toolchain-clang.cmake
+cmake --build build
+ctest --test-dir build
+```
+
+### IDE setup
+
+Point your IDE's CMake configuration at the toolchain file:
+
+- **CLion:** *Settings → Build, Execution, Deployment → CMake → CMake options:*
+  `--toolchain cmake/toolchain-clang.cmake`
+- **VS Code (CMake Tools):** add to `.vscode/settings.json`:
+  ```json
+  { "cmake.configureArgs": ["--toolchain", "cmake/toolchain-clang.cmake"] }
+  ```
+
+### Debian packages
+
+Reproducible `.deb` builds for each library run in a Debian container (needs
+`podman` or `docker`):
+
+```sh
+./container-build.sh             # build every package's .deb into deb-output/
+./container-build.sh avb         # build avb and its dependencies only
+./container-build-cross.sh       # cross-compile arm64 .debs (no qemu, no tests)
+./container-fuzz.sh              # run the libFuzzer campaigns (crypto, avb)
+```
+
+### Formatting
+
+```sh
+./reformat.sh                    # format all packages in place
+./reformat.sh --check           # CI mode: non-zero exit if anything would change
+```
