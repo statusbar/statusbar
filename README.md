@@ -114,6 +114,56 @@ cmake --build build
 ctest --test-dir build
 ```
 
+### Sanitizers and coverage
+
+The Clang sanitizers are off by default and **mutually exclusive** — each
+changes the ABI/runtime, so give each its own build directory and re-run the
+tests there (configuring two at once is a hard error):
+
+```sh
+# AddressSanitizer
+cmake -G Ninja -B build-asan -S . --toolchain cmake/toolchain-clang.cmake -DENABLE_ASAN=ON
+cmake --build build-asan && ctest --test-dir build-asan
+
+# UndefinedBehaviorSanitizer (built with -fno-sanitize-recover, so it aborts)
+cmake -G Ninja -B build-ubsan -S . --toolchain cmake/toolchain-clang.cmake -DENABLE_UBSAN=ON
+cmake --build build-ubsan && ctest --test-dir build-ubsan
+
+# ThreadSanitizer
+cmake -G Ninja -B build-tsan -S . --toolchain cmake/toolchain-clang.cmake -DENABLE_TSAN=ON
+cmake --build build-tsan && ctest --test-dir build-tsan
+```
+
+Code coverage (LLVM source-based; needs `llvm-profdata` / `llvm-cov`):
+
+```sh
+cmake -G Ninja -B build-cov -S . --toolchain cmake/toolchain-clang.cmake -DENABLE_COVERAGE=ON
+cmake --build build-cov && ctest --test-dir build-cov
+cmake --build build-cov --target coverage-html   # also: coverage-collect, coverage-report
+```
+
+### Fuzzing (Linux)
+
+Fuzzing uses Clang's built-in libFuzzer (`-fsanitize=fuzzer`). It defaults **ON
+with Clang on Linux** and **OFF on macOS** (the macOS path builds the fuzzer
+sources as plain executables). With it enabled, two aggregate targets
+auto-discover every `*_fuzzer` binary in the build tree:
+
+```sh
+cmake -G Ninja -B build -S . --toolchain cmake/toolchain-clang.cmake -DENABLE_FUZZING=ON
+cmake --build build
+cmake --build build --target fuzz-smoke   # run each fuzzer once with a seed (quick check)
+cmake --build build --target fuzz-all     # campaign: ~30s per fuzzer, corpus under build/fuzz/
+```
+
+For reproducible, containerized campaigns (Debian + libc++, the packages that
+define fuzzers are `crypto` and `avb`), use the wrapper instead — see
+[Debian packages](#debian-packages) below:
+
+```sh
+./container-fuzz.sh            # all fuzzers; FUZZ_DURATION=60 ./container-fuzz.sh avb to tune
+```
+
 ### IDE setup
 
 Point your IDE's CMake configuration at the toolchain file:
