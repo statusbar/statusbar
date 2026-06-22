@@ -10,6 +10,45 @@ below lives under [**codeberg.org/statusbar**](https://codeberg.org/statusbar).
 
 ---
 
+## Quick start
+
+Start here. This umbrella is the entry point — it pulls in every library and
+tool as a submodule and builds them as one project. Clang with libc++ is the
+required toolchain; `local-build.sh` applies it automatically (see
+[Prerequisites](#prerequisites) to install it).
+
+```sh
+# Clone everything (libraries + platform tooling are git submodules)
+git clone --recursive https://codeberg.org/statusbar/statusbar.git
+cd statusbar
+
+# Build every library + run the full test suite (into ./build)
+./local-build.sh
+
+# Sanitizers — mutually exclusive, each in its own build dir
+BUILD_DIR=build-asan  ./local-build.sh -DENABLE_ASAN=ON     # AddressSanitizer
+BUILD_DIR=build-ubsan ./local-build.sh -DENABLE_UBSAN=ON    # UndefinedBehaviorSanitizer
+BUILD_DIR=build-tsan  ./local-build.sh -DENABLE_TSAN=ON     # ThreadSanitizer
+
+# Fuzzing (Linux; libFuzzer is on by default with Clang)
+BUILD_DIR=build-fuzz ./local-build.sh -DENABLE_FUZZING=ON
+cmake --build build-fuzz --target fuzz-smoke   # run each *_fuzzer once
+cmake --build build-fuzz --target fuzz-all     # ~30s-per-fuzzer campaign
+
+# Code coverage (HTML report under build-cov/)
+BUILD_DIR=build-cov ./local-build.sh -DENABLE_COVERAGE=ON
+cmake --build build-cov --target coverage-html
+
+# Format the whole tree (use --check in CI)
+./reformat.sh
+```
+
+Everything above is expanded — prerequisites, IDE setup, Debian packaging — in
+[**Building**](#building) below. Each submodule also has its own README for
+working on that library standalone.
+
+---
+
 ## The stack
 
 The libraries layer cleanly: `core` is the foundation, `crypto` and `audio`
@@ -63,7 +102,7 @@ Every project is included here as a git submodule, so a recursive clone of this
 umbrella pulls them all:
 
 ```sh
-git clone --recursive https://codeberg.org/statusbar/umbrella.git
+git clone --recursive https://codeberg.org/statusbar/statusbar.git
 ```
 
 Already cloned without `--recursive`? Pull the submodules with:
