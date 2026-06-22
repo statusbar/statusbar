@@ -8,6 +8,21 @@ project(statusbar-umbrella LANGUAGES CXX)
 set(STATUSBAR_AGGREGATE_BUILD ON)
 enable_testing()
 
+# Project build-helper modules: define statusbar_register_{fuzz,coverage,
+# clang_tidy}_targets() and the sanitizer/coverage/fuzzing options. These are
+# project build logic, NOT compiler selection, so the project provides them
+# itself rather than depending on a particular CMAKE_TOOLCHAIN_FILE to pull them
+# in. (The bundled cmake/toolchain-clang.cmake also include()s them — it runs
+# first, before project() — so the COMMAND guard makes this a no-op in that
+# case, while still defining the helpers under any other toolchain.)
+if(NOT COMMAND statusbar_register_fuzz_targets)
+  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+  include(sanitizers)
+  include(coverage)
+  include(fuzzing)
+  include(clang_tidy)
+endif()
+
 # Build every library and tool without C++ exceptions. The codebase routes all
 # error paths through statusbar::throw_or_abort (which logs + std::terminate()s
 # instead of throwing when exceptions are off), so this compiles cleanly. The
