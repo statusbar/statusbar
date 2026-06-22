@@ -1,0 +1,7 @@
+**/__pycache__/
+build-*/
+build/
+deb-output/
+fuzz-output/
+.cache/
+.claude/settings.local.json
