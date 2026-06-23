@@ -6,8 +6,8 @@
 # Guard against CMake processing this toolchain file multiple times within a
 # single configure pass (e.g. if a CMakeLists also include()s it after CMake
 # itself already loaded it via --toolchain). Directory-scope, not CACHE — using
-# a cache variable would suppress the toolchain on every *reconfigure*, breaking
-# the include()s for sanitizers/fuzzing/etc. at the bottom of this file.
+# a cache variable would suppress the toolchain (compiler/flags) on every
+# *reconfigure*.
 if(STATUSBAR_TOOLCHAIN_LOADED)
   return()
 endif()
@@ -124,8 +124,12 @@ endif()
 # Architecture-specific SIMD flags are set in the root CMakeLists.txt (after
 # project()) where CMAKE_SYSTEM_PROCESSOR is available.
 
-# Warnings
-option(ENABLE_WARNINGS_AS_ERRORS "Warning is an error" ON)
+# Warnings. Default OFF: -Werror turns any new diagnostic from a different or
+# newer compiler version into a hard build failure, which breaks consumers and
+# IDE/single-project builds using a compiler other than the one this was pinned
+# to. The project's own CI/dev builds opt in with -DENABLE_WARNINGS_AS_ERRORS=ON
+# (local-build.sh passes it).
+option(ENABLE_WARNINGS_AS_ERRORS "Warning is an error" OFF)
 if(ENABLE_WARNINGS_AS_ERRORS)
   list(APPEND _STATUSBAR_CXX_FLAGS -Werror)
 endif()
@@ -148,11 +152,12 @@ if(_STATUSBAR_LINKER_FLAGS)
   string(APPEND CMAKE_MODULE_LINKER_FLAGS " ${_STATUSBAR_LINKER_FLAGS_STR}")
 endif()
 
-# Include optional toolchain components
-include("${CMAKE_CURRENT_LIST_DIR}/sanitizers.cmake")
-include("${CMAKE_CURRENT_LIST_DIR}/coverage.cmake")
-include("${CMAKE_CURRENT_LIST_DIR}/fuzzing.cmake")
-include("${CMAKE_CURRENT_LIST_DIR}/clang_tidy.cmake")
+# NOTE: the sanitizer / coverage / fuzzing / clang-tidy helper modules are NOT
+# included here. They are project build logic (options + statusbar_register_*
+# target helpers), not compiler selection, so the top-level CMakeLists.txt
+# includes them after project() instead. This keeps the toolchain file free of
+# project API, so the aggregate configures under any CMAKE_TOOLCHAIN_FILE (or
+# none) — required for a single-project IDE build.
 
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "CXX flags: ${CMAKE_CXX_FLAGS}")

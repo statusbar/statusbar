@@ -205,14 +205,26 @@ define fuzzers are `crypto` and `avb`), use the wrapper instead — see
 
 ### IDE setup
 
-Point your IDE's CMake configuration at the toolchain file:
+The repo ships a `CMakePresets.json`, so most IDEs configure with no manual
+setup — just select a preset:
 
-- **CLion:** *Settings → Build, Execution, Deployment → CMake → CMake options:*
-  `--toolchain cmake/toolchain-clang.cmake`
-- **VS Code (CMake Tools):** add to `.vscode/settings.json`:
-  ```json
-  { "cmake.configureArgs": ["--toolchain", "cmake/toolchain-clang.cmake"] }
-  ```
+- **`default`** — aggregate build with the pinned clang/libc++ toolchain
+  (`RelWithDebInfo`, `compile_commands.json` on). Use this for day-to-day work.
+- **`dev`** — same, plus `-Werror` (the strict CI build).
+- **`asan`** — AddressSanitizer build in `build-asan/`.
+
+IDEs that read `CMakePresets.json` natively: **CLion** (2021.1+),
+**Visual Studio** (2019 16.10+ / 2022), **VS Code** with the CMake Tools
+extension, and **Qt Creator** (recent). From the command line:
+
+```sh
+cmake --preset default
+cmake --build --preset default
+ctest --preset default
+```
+
+Without presets, point your IDE's CMake options at the toolchain file directly:
+`--toolchain cmake/toolchain-clang.cmake`.
 
 ### Debian packages
 

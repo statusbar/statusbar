@@ -1,0 +1,48 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 31, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Aggregate (clang toolchain)",
+      "description": "Build every statusbar-* package as one project with the pinned clang/libc++ C++23 toolchain. Use this in your IDE to develop across all submodules at once.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build",
+      "toolchainFile": "${sourceDir}/cmake/toolchain-clang.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "dev",
+      "displayName": "Aggregate (clang toolchain, -Werror)",
+      "description": "Same as default plus -Werror — the strict dev/CI build (matches local-build.sh).",
+      "inherits": "default",
+      "cacheVariables": { "ENABLE_WARNINGS_AS_ERRORS": "ON" }
+    },
+    {
+      "name": "asan",
+      "displayName": "Aggregate (AddressSanitizer)",
+      "inherits": "dev",
+      "binaryDir": "${sourceDir}/build-asan",
+      "cacheVariables": { "ENABLE_ASAN": "ON" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "default", "configurePreset": "default" },
+    { "name": "dev", "configurePreset": "dev" }
+  ],
+  "testPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}
