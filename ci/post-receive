@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+#
+# Shared post-receive hook for the statusbar bare repos (SSH-only git server).
+#
+# Triggers an integration build when a `pr/<name>` branch is pushed to the
+# umbrella repo OR to any statusbar-* package repo. The whole umbrella is built
+# with just the pushed submodule swapped to the PR commit (see
+# integration-build.sh). The push returns immediately; output goes to $LOG_DIR.
+#
+# Install once for every repo via a shared hooks dir (as the git user):
+#
+#     git config --global core.hooksPath /srv/ci/hooks
+#     ln -s /srv/ci/checkout/ci/post-receive /srv/ci/hooks/post-receive
+#     chmod +x /srv/ci/hooks/post-receive
+#
+# (core.hooksPath is global for the git user, so this one hook serves all repos;
+# it ignores any repo that is not the umbrella or a statusbar-* package.)
+set -euo pipefail
+
+# --- config (edit to match the server) --------------------------------------
+CI_BIN="${CI_BIN:-/srv/ci/integration-build.sh}"   # build script (this dir)
+LOG_DIR="${LOG_DIR:-/srv/ci/logs}"
+UMBRELLA_REPO="${UMBRELLA_REPO:-statusbar}"         # bare repo name of the umbrella
+# ----------------------------------------------------------------------------
+
+repo_name="$(basename "$(pwd)" .git)"
+
+# Only act on the umbrella or its packages; ignore every other repo on the box.
+case "$repo_name" in
+  "$UMBRELLA_REPO" | statusbar-*) ;;
+  *) exit 0 ;;
+esac
+
+mkdir -p "$LOG_DIR"
+
+while read -r _old new ref; do
+  case "$ref" in refs/heads/pr/*) ;; *) continue ;; esac   # only pr/* branches
+  [[ "$new" =~ ^0+$ ]] && continue                          # ignore deletions
+
+  branch="${ref#refs/heads/}"
+  safe="$(printf '%s' "$branch" | tr '/ ' '--')"
+  stamp="$(date -u +%Y%m%dT%H%M%SZ)-${repo_name}-${safe}-${new:0:8}"
+  log="$LOG_DIR/${stamp}.log"
+
+  # Detach fully (setsid + redirect all fds) so `git push` does not block on
+  # the build. The build serializes itself with flock (see integration-build.sh).
+  REPO_NAME="$repo_name" BRANCH="$branch" SHA="$new" \
+    setsid bash "$CI_BIN" >"$log" 2>&1 </dev/null &
+
+  echo "CI: queued integration build for ${repo_name} ${branch}"
+  echo "CI:   tail -f ${log}"
+done
+exit 0
