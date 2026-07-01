@@ -6,7 +6,7 @@ project(statusbar-umbrella LANGUAGES CXX)
 # so the per-package aggregate targets, install/export rules and find_package()
 # calls defer to the shared ones created here.
 set(STATUSBAR_AGGREGATE_BUILD ON)
-enable_testing()
+include(CTest) 
 
 # Project build-helper modules: define statusbar_register_{fuzz,coverage,
 # clang_tidy}_targets() and the sanitizer/coverage/fuzzing options. These are
