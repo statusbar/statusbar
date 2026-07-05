@@ -126,12 +126,27 @@ endif()
 # and every SIMD op silently falls back to scalar. Applied globally (every TU,
 # not just the dsp target): two TUs that both include the SIMD headers but
 # disagree on -mavx2 pick different inline definitions — an ODR hazard. NEON is
-# baseline on ARMv8, so aarch64 needs no flag. The cross toolchain sets
-# CMAKE_SYSTEM_PROCESSOR=aarch64 before including this file; a native x86_64
-# build leaves it empty here, which the else branch covers.
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm")
-  # ARMv8 NEON is mandatory — nothing to add.
+# baseline on ARMv8, so aarch64 needs no flag.
+#
+# ENABLE_AVX (default ON) lets a build opt out of the AVX/FMA baseline — e.g. to
+# target an older x86 CPU without AVX2, or to produce a portable binary. It only
+# has an effect on x86 targets; on non-x86 the flags are never added regardless.
+option(ENABLE_AVX "Enable the AVX2/FMA SIMD baseline on x86 targets" ON)
+
+# Resolve the *target* processor. On a cross build the cross toolchain sets
+# CMAKE_SYSTEM_PROCESSOR before including this file; on a native build it is
+# still empty during the toolchain pass (CMake probes the system only at
+# project() time), so fall back to CMAKE_HOST_SYSTEM_PROCESSOR, which CMake
+# populates before the first toolchain inclusion. Add AVX only when the target
+# is *positively* identified as x86 — treating "anything not ARM" as x86 wrongly
+# enabled -mavx2/-mfma on a native aarch64 host (clang rejects them), and would
+# also misfire on other non-x86 arches.
+if(CMAKE_SYSTEM_PROCESSOR)
+  set(_STATUSBAR_TARGET_PROC "${CMAKE_SYSTEM_PROCESSOR}")
 else()
+  set(_STATUSBAR_TARGET_PROC "${CMAKE_HOST_SYSTEM_PROCESSOR}")
+endif()
+if(ENABLE_AVX AND _STATUSBAR_TARGET_PROC MATCHES "x86_64|AMD64|amd64|i[3-6]86")
   list(APPEND _STATUSBAR_CXX_FLAGS -mavx2 -mfma)
 endif()
 
