@@ -6,7 +6,7 @@ project(statusbar-umbrella LANGUAGES CXX)
 # so the per-package aggregate targets, install/export rules and find_package()
 # calls defer to the shared ones created here.
 set(STATUSBAR_AGGREGATE_BUILD ON)
-include(CTest) 
+include(CTest)
 
 # Project build-helper modules: define statusbar_register_{fuzz,coverage,
 # clang_tidy}_targets() and the sanitizer/coverage/fuzzing options. These are
@@ -40,9 +40,10 @@ endif()
 # deployments that prefer fail-closed over the default release behaviour
 # ([[assume]], i.e. undefined behaviour on a violated precondition). OFF by
 # default; STATUSBAR_HARDENED is otherwise undefined.
-option(ENABLE_HARDENING
-       "Make STATUSBAR_ASSERT trap on violation in all builds (defense in depth)"
-       OFF)
+option(
+  ENABLE_HARDENING
+  "Make STATUSBAR_ASSERT trap on violation in all builds (defense in depth)"
+  OFF)
 if(ENABLE_HARDENING)
   add_compile_definitions(STATUSBAR_HARDENED)
 endif()
@@ -53,9 +54,10 @@ endif()
 # as an on-box ATDECC controller/monitor): all TX then goes through the normal
 # qdisc path so tcpdump/monitor/controller on the same host observe our own
 # stream + control egress, and RawnetContext sockets are opened promiscuous.
-option(ENABLE_PACKET_QDISC_BYPASS
-       "Use PACKET_QDISC_BYPASS for opted-in TX sockets (OFF = all TX visible to local capture + promiscuous RX)"
-       ON)
+option(
+  ENABLE_PACKET_QDISC_BYPASS
+  "Use PACKET_QDISC_BYPASS for opted-in TX sockets (OFF = all TX visible to local capture + promiscuous RX)"
+  ON)
 if(NOT ENABLE_PACKET_QDISC_BYPASS)
   add_compile_definitions(STATUSBAR_NO_QDISC_BYPASS)
 endif()
@@ -203,12 +205,8 @@ add_custom_target(
           ${CMAKE_SOURCE_DIR}/avb/docs/sm/nanoavb
   COMMAND ${_sm_render} $<TARGET_FILE:stun_sm_tool>
           ${CMAKE_SOURCE_DIR}/avb/docs/sm/stun
-  DEPENDS atdecc_sm_tool
-          avtp_sm_tool
-          gptp_sm_tool
-          srp_sm_tool
-          nanoavb_supervisor_sm_tool
-          stun_sm_tool
+  DEPENDS atdecc_sm_tool avtp_sm_tool gptp_sm_tool srp_sm_tool
+          nanoavb_supervisor_sm_tool stun_sm_tool
   COMMENT
     "Regenerating per-SM Markdown + SVG across all submodules (needs graphviz)"
   VERBATIM USES_TERMINAL)
