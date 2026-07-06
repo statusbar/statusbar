@@ -40,20 +40,6 @@ has() { case " $1 " in *" $2 "*) return 0 ;; *) return 1 ;; esac ; }
 
 mkdir -p "$DEB_OUTPUT"
 
-HOST_BUILD_DIR="${HOST_BUILD_DIR:-$ROOT/build}"
-HOST_TOOL="$HOST_BUILD_DIR/avb/statusbar/tools/statusbar-aem-entity-blob"
-stale=0
-if [ ! -x "$HOST_TOOL" ]; then
-  stale=1
-elif [ -n "$(find "$ROOT/avb/statusbar/tools" "$ROOT/avb/statusbar/atdecc" "$ROOT/avb/statusbar/ieee" -type f -newer "$HOST_TOOL" -print -quit 2>/dev/null)" ]; then
-  stale=1
-fi
-if [ "$stale" -eq 1 ]; then
-  echo "=== native amd64 build (host tools for cross) ==="
-  BUILD_DIR="$HOST_BUILD_DIR" "$ROOT/local-build.sh"
-fi
-export HOST_BUILD_DIR
-
 WANT=""
 if [ "$#" -eq 0 ]; then
   WANT=" $TOPO "
