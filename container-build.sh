@@ -17,6 +17,22 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEB_OUTPUT="${DEB_OUTPUT:-$ROOT/deb-output}"
 export DEB_OUTPUT
+ENGINE="${CONTAINER_ENGINE:-podman}"
+
+# On macOS the container engine runs inside a VM; when that VM is stopped
+# every engine command fails with a cryptic "connection refused". If the
+# engine is unreachable but a podman machine is configured, start it.
+if ! "$ENGINE" info >/dev/null 2>&1; then
+  if "$ENGINE" machine inspect >/dev/null 2>&1; then
+    echo "=== $ENGINE VM is not running; starting it ==="
+    "$ENGINE" machine start
+  else
+    echo "error: cannot connect to $ENGINE." >&2
+    echo "       Start the container engine (macOS: '$ENGINE machine init' then" >&2
+    echo "       '$ENGINE machine start'; Linux: check the $ENGINE service)." >&2
+    exit 1
+  fi
+fi
 
 # Packages in dependency-first order.
 TOPO="core crypto audio avb"
