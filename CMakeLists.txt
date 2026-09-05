@@ -94,6 +94,27 @@ add_subdirectory(crypto)
 add_subdirectory(audio)
 add_subdirectory(avb)
 
+# Nested extension packages: a private tree dropped into the umbrella (NOT a
+# submodule) joins the aggregate when it looks like a statusbar package — a
+# top-level CMakeLists.txt beside a statusbar/ module directory. They may
+# find_package() any exported package (satisfied in-tree by the redirects
+# above). Sorted for a deterministic configure.
+file(
+  GLOB _extra_dirs
+  RELATIVE "${CMAKE_SOURCE_DIR}"
+  "${CMAKE_SOURCE_DIR}/*")
+list(SORT _extra_dirs)
+foreach(_d ${_extra_dirs})
+  if(_d MATCHES "^(core|crypto|audio|avb)$")
+    continue()
+  endif()
+  if(EXISTS "${CMAKE_SOURCE_DIR}/${_d}/CMakeLists.txt"
+     AND IS_DIRECTORY "${CMAKE_SOURCE_DIR}/${_d}/statusbar")
+    message(STATUS "aggregate: including nested package ${_d}")
+    add_subdirectory(${_d})
+  endif()
+endforeach()
+
 # Populate the umbrella interface library once every module target exists.
 # STATUSBAR_INSTALL_TARGETS accumulated every module's target, including tool
 # executables — link only the library targets.

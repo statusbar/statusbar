@@ -37,19 +37,32 @@ fi
 # Packages in dependency-first order.
 TOPO="core crypto audio avb"
 
-# Transitive dependencies of each package.
+# Membership test in a space-separated set (needed by the discovery below).
+has() { case " $1 " in *" $2 "*) return 0 ;; *) return 1 ;; esac ; }
+
+# Nested extension packages: a private tree dropped into the umbrella (NOT a
+# submodule) joins the build when it carries its own scripts/container-build.sh.
+# They depend only on exported packages (their script's DEPS line), so they
+# sort after the exported set in any order.
+EXTRA=""
+for _cb in "$ROOT"/*/scripts/container-build.sh; do
+  [ -e "$_cb" ] || continue
+  _p="$(basename "$(dirname "$(dirname "$_cb")")")"
+  has "$TOPO" "$_p" || EXTRA="$EXTRA $_p"
+done
+TOPO="$TOPO$EXTRA"
+
+# Transitive dependencies of each package. Extension packages declare theirs
+# in their own container-build.sh (the DEPS= line).
 tdeps() {
   case "$1" in
     core) echo "" ;;
     crypto) echo "core" ;;
     audio) echo "core" ;;
     avb) echo "core crypto audio" ;;
-    *) echo "" ;;
+    *) sed -n 's/^DEPS="\(.*\)"$/\1/p' "$ROOT/$1/scripts/container-build.sh" 2>/dev/null ;;
   esac
 }
-
-# Membership test in a space-separated set.
-has() { case " $1 " in *" $2 "*) return 0 ;; *) return 1 ;; esac ; }
 
 mkdir -p "$DEB_OUTPUT"
 
@@ -68,9 +81,10 @@ else
 fi
 
 # Stale if the .deb is missing, or any source file is newer than it.
+# Extension packages may name their deb without the statusbar- prefix.
 src_newer() {
   local pkg="$1" tree="$ROOT/$1" deb
-  deb="$(ls -1 "$DEB_OUTPUT"/statusbar-"$pkg"_*.deb 2>/dev/null | head -n1 || true)"
+  deb="$(ls -1 "$DEB_OUTPUT"/statusbar-"$pkg"_*.deb "$DEB_OUTPUT"/"$pkg"_*.deb 2>/dev/null | head -n1 || true)"
   [ -z "$deb" ] && return 0
   [ -n "$(find "$tree" -type f -newer "$deb" \
             -not -path '*/build/*' -not -path '*/build-*/*' \
