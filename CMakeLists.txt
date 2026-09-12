@@ -178,6 +178,17 @@ if(STATUSBAR_TEST_FILES AND NOT ENABLE_NO_EXCEPTIONS)
     add_test(NAME ${TEST_NAME} COMMAND statusbar_test ${TEST_NAME})
   endforeach()
   add_test(NAME statusbar_all_test COMMAND statusbar_test -A)
+  # The -A run-all branch of CMake's create_test_sourcelist driver cannot fail:
+  # it `return 0`s unconditionally, and it only prints "not ok" when a test
+  # function returns -1 -- but TestRegister::run_section() returns 1. So the
+  # aggregate run reported "ok" for failing sections and exited 0, making this a
+  # permanently-green gate. Judge it by the harness's own output instead of the
+  # driver's exit code: no FAIL: line, and the run must reach the end (so a
+  # crash part-way through cannot pass either).
+  set_tests_properties(
+    statusbar_all_test
+    PROPERTIES FAIL_REGULAR_EXPRESSION "FAIL: " PASS_REGULAR_EXPRESSION
+               "All tests finished\\.")
   statusbar_register_coverage_targets(statusbar_test)
 endif()
 
