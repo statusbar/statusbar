@@ -22,6 +22,26 @@
       "cacheVariables": { "ENABLE_WARNINGS_AS_ERRORS": "ON" }
     },
     {
+      "name": "gcc",
+      "displayName": "Aggregate (gcc toolchain, C++26)",
+      "description": "Build every statusbar-* package as one project with GCC 16 and libstdc++ at -std=c++26. Separate build directory from the clang presets: libc++ and libstdc++ objects cannot be mixed.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build-gcc",
+      "toolchainFile": "${sourceDir}/cmake/toolchain-gcc.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+      }
+    },
+    {
+      "name": "gcc-dev",
+      "displayName": "Aggregate (gcc toolchain, C++26, -Werror)",
+      "description": "Same as gcc plus -Werror. GCC's diagnostic set differs from clang's, so expect findings the clang build does not report.",
+      "inherits": "gcc",
+      "binaryDir": "${sourceDir}/build-gcc-dev",
+      "cacheVariables": { "ENABLE_WARNINGS_AS_ERRORS": "ON" }
+    },
+    {
       "name": "asan",
       "displayName": "Aggregate (AddressSanitizer)",
       "inherits": "dev",
@@ -31,7 +51,9 @@
   ],
   "buildPresets": [
     { "name": "default", "configurePreset": "default" },
-    { "name": "dev", "configurePreset": "dev" }
+    { "name": "dev", "configurePreset": "dev" },
+    { "name": "gcc", "configurePreset": "gcc" },
+    { "name": "gcc-dev", "configurePreset": "gcc-dev" }
   ],
   "testPresets": [
     {
@@ -42,6 +64,16 @@
     {
       "name": "dev",
       "configurePreset": "dev",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "gcc",
+      "configurePreset": "gcc",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "gcc-dev",
+      "configurePreset": "gcc-dev",
       "output": { "outputOnFailure": true }
     }
   ]
