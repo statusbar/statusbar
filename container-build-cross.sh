@@ -14,12 +14,36 @@
 # or when one of its dependencies was rebuilt during this run. Output is
 # collected in deb-output/. Override the target arch with TARGET_ARCH and
 # the container engine with CONTAINER_ENGINE.
+#
+# STATUSBAR_TOOLCHAIN=clang|gcc selects the compiler (default clang). clang
+# cross-targets with its multi-target driver; gcc uses Debian's
+# aarch64-linux-gnu cross compiler, which needs a forky-or-later base. As in
+# the native path, gcc output goes to deb-output-gcc/ and statically links the
+# C++ runtime by default (override with STATUSBAR_STATIC_CXX=ON|OFF).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEB_OUTPUT="${DEB_OUTPUT:-$ROOT/deb-output}"
+# Compiler selection, passed down to each package's container-build-cross.sh.
+STATUSBAR_TOOLCHAIN="${STATUSBAR_TOOLCHAIN:-clang}"
+case "$STATUSBAR_TOOLCHAIN" in
+  clang | gcc) ;;
+  *)
+    echo "error: STATUSBAR_TOOLCHAIN must be 'clang' or 'gcc'" >&2
+    exit 1
+    ;;
+esac
+
+# Each toolchain gets its own output directory: the .deb filenames are
+# identical across compilers, so a shared directory would have them overwrite
+# each other and make the source-newer-than-.deb staleness check compare a
+# tree against a package built by the other compiler.
+case "$STATUSBAR_TOOLCHAIN" in
+  gcc) _default_out="$ROOT/deb-output-gcc" ;;
+  *)   _default_out="$ROOT/deb-output" ;;
+esac
+DEB_OUTPUT="${DEB_OUTPUT:-$_default_out}"
 TARGET_ARCH="${TARGET_ARCH:-arm64}"
-export DEB_OUTPUT TARGET_ARCH
+export DEB_OUTPUT TARGET_ARCH STATUSBAR_TOOLCHAIN
 
 # Packages in dependency-first order.
 TOPO="core crypto audio avb"
