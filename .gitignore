@@ -2,6 +2,7 @@
 build-*/
 build/
 deb-output/
+deb-output-gcc/
 fuzz-output/
 .cache/
 .claude/settings.local.json

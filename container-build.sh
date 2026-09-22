@@ -12,10 +12,35 @@
 # the container engine with CONTAINER_ENGINE, and the target architecture
 # with TARGET_PLATFORM (default linux/arm64; cross-arch needs qemu-user-static
 # registered with the host kernel's binfmt_misc).
+#
+# STATUSBAR_TOOLCHAIN=clang|gcc selects the compiler (default clang). The gcc
+# toolchain builds C++26 with g++-16 on a forky base and, by default, statically
+# links the C++ runtime so the packages still install on an older target; its
+# .deb files land in deb-output-gcc/ so the two toolchains never overwrite each
+# other. Set STATUSBAR_STATIC_CXX=ON|OFF to override the static-runtime choice.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DEB_OUTPUT="${DEB_OUTPUT:-$ROOT/deb-output}"
+# Compiler selection, passed down to each package's container-build.sh.
+STATUSBAR_TOOLCHAIN="${STATUSBAR_TOOLCHAIN:-clang}"
+case "$STATUSBAR_TOOLCHAIN" in
+  clang | gcc) ;;
+  *)
+    echo "error: STATUSBAR_TOOLCHAIN must be 'clang' or 'gcc'" >&2
+    exit 1
+    ;;
+esac
+export STATUSBAR_TOOLCHAIN
+
+# Each toolchain gets its own output directory. The .deb filenames are
+# identical across toolchains, so a shared directory would have them overwrite
+# each other and make the source-newer-than-.deb staleness check compare a
+# tree against a package built by the other compiler.
+case "$STATUSBAR_TOOLCHAIN" in
+  gcc) _default_out="$ROOT/deb-output-gcc" ;;
+  *)   _default_out="$ROOT/deb-output" ;;
+esac
+DEB_OUTPUT="${DEB_OUTPUT:-$_default_out}"
 export DEB_OUTPUT
 ENGINE="${CONTAINER_ENGINE:-podman}"
 
@@ -96,6 +121,7 @@ src_newer() {
 # always upgrades (plain `apt-get install` skips a same-version reinstall, which
 # silently left a node on the old binary). Bumped only here / per run.
 export STATUSBAR_DEB_REVISION="${STATUSBAR_DEB_REVISION:-$(date -u +%Y%m%d%H%M%S)}"
+echo "=== toolchain: $STATUSBAR_TOOLCHAIN  output: $DEB_OUTPUT ==="
 echo "=== deb revision for this run: $STATUSBAR_DEB_REVISION ==="
 
 REBUILT=""
