@@ -45,6 +45,11 @@ DEB_OUTPUT="${DEB_OUTPUT:-$_default_out}"
 TARGET_ARCH="${TARGET_ARCH:-arm64}"
 export DEB_OUTPUT TARGET_ARCH STATUSBAR_TOOLCHAIN
 
+# One shared Debian revision for the whole run, so a multi-package build
+# produces a consistent set (each package script defaults its own if unset).
+STATUSBAR_DEB_REVISION="${STATUSBAR_DEB_REVISION:-$(date -u +%Y%m%d%H%M%S)}"
+export STATUSBAR_DEB_REVISION
+
 # Packages in dependency-first order.
 TOPO="core crypto audio avb"
 
