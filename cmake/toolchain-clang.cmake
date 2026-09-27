@@ -153,11 +153,12 @@ endif()
 # Warnings. Default OFF: -Werror turns any new diagnostic from a different or
 # newer compiler version into a hard build failure, which breaks consumers and
 # IDE/single-project builds using a compiler other than the one this was pinned
-# to. The project's own CI/dev builds opt in with -DENABLE_WARNINGS_AS_ERRORS=ON
-# (local-build.sh passes it). Statically link the C++ runtime into executables.
-# One flag pair covers both toolchains: GCC links libstdc++ and libgcc; clang
-# links libc++, libc++abi and the libgcc unwinder. Either way the C++ runtime
-# leaves the binary's dynamic dependencies entirely.
+# to. (The per-package toolchains default it ON for their standalone CI/dev
+# builds; aggregate builds opt in with -DENABLE_WARNINGS_AS_ERRORS=ON.)
+# Statically link the C++ runtime into executables. One flag pair covers both
+# toolchains: GCC links libstdc++ and libgcc; clang links libc++, libc++abi and
+# the libgcc unwinder. Either way the C++ runtime leaves the binary's dynamic
+# dependencies entirely.
 #
 # This decouples the build compiler from the runtime present on the target. A
 # C++26 GCC 16 binary needs GLIBCXX_3.4.36, which Debian trixie (libstdc++

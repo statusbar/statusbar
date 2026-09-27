@@ -12,9 +12,10 @@ include(CTest)
 # clang_tidy}_targets() and the sanitizer/coverage/fuzzing options. These are
 # project build logic, NOT compiler selection, so the project provides them
 # itself rather than depending on a particular CMAKE_TOOLCHAIN_FILE to pull them
-# in. (The bundled cmake/toolchain-clang.cmake also include()s them — it runs
-# first, before project() — so the COMMAND guard makes this a no-op in that
-# case, while still defining the helpers under any other toolchain.)
+# in. The bundled cmake/toolchain-clang.cmake deliberately does NOT include them
+# (see its NOTE) — but each package's own toolchain copy still does, so the
+# COMMAND guard makes this a no-op when a build configures with a package
+# toolchain, while defining the helpers under the bundled one or any other.
 if(NOT COMMAND statusbar_register_fuzz_targets)
   list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
   include(sanitizers)
@@ -98,7 +99,9 @@ add_subdirectory(avb)
 # submodule) joins the aggregate when it looks like a statusbar package — a
 # top-level CMakeLists.txt beside a statusbar/ module directory. They may
 # find_package() any exported package (satisfied in-tree by the redirects
-# above). Sorted for a deterministic configure.
+# above). Sorted for a deterministic configure. The glob is evaluated at
+# configure time only (no CONFIGURE_DEPENDS): after dropping in or removing a
+# nested package, re-run cmake by hand.
 file(
   GLOB _extra_dirs
   RELATIVE "${CMAKE_SOURCE_DIR}"
@@ -167,6 +170,11 @@ foreach(TEST_FILE_ABS ${STATUSBAR_TEST_FILES_ABS})
   list(APPEND STATUSBAR_TEST_FILES "${TEST_FILE_REL}")
 endforeach()
 list(SORT STATUSBAR_TEST_FILES)
+if(STATUSBAR_TEST_FILES AND ENABLE_NO_EXCEPTIONS)
+  message(
+    STATUS "ENABLE_NO_EXCEPTIONS: skipping the aggregate statusbar_test binary "
+           "(the test harness requires exceptions)")
+endif()
 if(STATUSBAR_TEST_FILES AND NOT ENABLE_NO_EXCEPTIONS)
   create_test_sourcelist(STATUSBAR_TEST_SOURCES statusbar_test.cpp
                          ${STATUSBAR_TEST_FILES})
