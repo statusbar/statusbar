@@ -76,32 +76,16 @@ define_property(
   FULL_DOCS "accumulated install targets")
 set_property(GLOBAL PROPERTY STATUSBAR_INSTALL_TARGETS "")
 
-# Satisfy each package's find_package(statusbar-<dep>) from the in-tree build:
-# write an empty redirect config that find_package() resolves before searching
-# anywhere else (the mechanism FetchContent uses).
-foreach(_pkg statusbar-core statusbar-crypto statusbar-audio statusbar-avb)
-  file(WRITE "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/${_pkg}-config.cmake"
-       "# satisfied in-tree by the statusbar-umbrella aggregate build\n")
-endforeach()
-
-# Shared aggregate targets — one each, replacing the per-package versions
-# (guarded off when STATUSBAR_AGGREGATE_BUILD is set).
-add_custom_target(run-all-benches)
-add_library(statusbar INTERFACE)
-
-# Exported packages, in dependency order.
-add_subdirectory(core)
-add_subdirectory(crypto)
-add_subdirectory(audio)
-add_subdirectory(avb)
-
-# Nested extension packages: a private tree dropped into the umbrella (NOT a
-# submodule) joins the aggregate when it looks like a statusbar package — a
-# top-level CMakeLists.txt beside a statusbar/ module directory. They may
-# find_package() any exported package (satisfied in-tree by the redirects
-# above). Sorted for a deterministic configure. The glob is evaluated at
-# configure time only (no CONFIGURE_DEPENDS): after dropping in or removing a
-# nested package, re-run cmake by hand.
+# Discover every package directory up front: the four exported packages plus any
+# nested extension — a private tree dropped into the umbrella (NOT a submodule)
+# that looks like a statusbar package, i.e. a top-level CMakeLists.txt beside a
+# statusbar/ module directory. This one _packages list drives the find_package()
+# redirects, the add_subdirectory() calls and the aggregate header install
+# below, so no later block carries its own copy of the package set. Sorted for a
+# deterministic configure. The glob is evaluated at configure time only (no
+# CONFIGURE_DEPENDS): after dropping in or removing a nested package, re-run
+# cmake by hand.
+set(_packages core crypto audio avb)
 file(
   GLOB _extra_dirs
   RELATIVE "${CMAKE_SOURCE_DIR}"
@@ -113,9 +97,34 @@ foreach(_d ${_extra_dirs})
   endif()
   if(EXISTS "${CMAKE_SOURCE_DIR}/${_d}/CMakeLists.txt"
      AND IS_DIRECTORY "${CMAKE_SOURCE_DIR}/${_d}/statusbar")
-    message(STATUS "aggregate: including nested package ${_d}")
-    add_subdirectory(${_d})
+    list(APPEND _packages ${_d})
   endif()
+endforeach()
+
+# Satisfy each package's find_package(statusbar-<dep>) from the in-tree build:
+# write an empty redirect config that find_package() resolves before searching
+# anywhere else (the mechanism FetchContent uses). Written for EVERY discovered
+# package (package name convention: statusbar-<directory>), before any
+# add_subdirectory(), so a nested extension may depend on the exported packages
+# AND on sibling extensions.
+foreach(_pkg ${_packages})
+  file(WRITE
+       "${CMAKE_FIND_PACKAGE_REDIRECTS_DIR}/statusbar-${_pkg}-config.cmake"
+       "# satisfied in-tree by the statusbar-umbrella aggregate build\n")
+endforeach()
+
+# Shared aggregate targets — one each, replacing the per-package versions
+# (guarded off when STATUSBAR_AGGREGATE_BUILD is set).
+add_custom_target(run-all-benches)
+add_library(statusbar INTERFACE)
+
+# Packages in dependency order: the exported four first (the fixed head of
+# _packages), then nested extensions in sorted order.
+foreach(_pkg ${_packages})
+  if(NOT _pkg MATCHES "^(core|crypto|audio|avb)$")
+    message(STATUS "aggregate: including nested package ${_pkg}")
+  endif()
+  add_subdirectory(${_pkg})
 endforeach()
 
 # Populate the umbrella interface library once every module target exists.
@@ -146,16 +155,20 @@ install(
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT devel
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR} COMPONENT runtime
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR} COMPONENT runtime)
-foreach(_pkg statusbar-core statusbar-crypto statusbar-audio statusbar-avb)
-  if(IS_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/${_pkg}/statusbar")
-    install(
-      DIRECTORY "${_pkg}/statusbar/"
-      DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/statusbar
-      COMPONENT devel
-      FILES_MATCHING
-      PATTERN "*.hpp"
-      PATTERN "*.h")
-  endif()
+# Headers for every discovered package (see the _packages discovery above). The
+# previous version iterated PACKAGE names ("statusbar-core") against a tree of
+# DIRECTORY names ("core/"), so its IS_DIRECTORY guard was never true and the
+# aggregate install silently shipped no headers at all. No guard here: _packages
+# entries were validated at discovery (and the exported four always have
+# statusbar/), so a missing directory should fail loudly, not skip.
+foreach(_pkg ${_packages})
+  install(
+    DIRECTORY "${_pkg}/statusbar/"
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/statusbar
+    COMPONENT devel
+    FILES_MATCHING
+    PATTERN "*.hpp"
+    PATTERN "*.h")
 endforeach()
 
 # Single aggregate test binary built from every package's test sources.
