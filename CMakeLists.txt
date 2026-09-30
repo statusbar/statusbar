@@ -226,27 +226,13 @@ endif()
 # clang-tidy aggregate target (no-op unless clang-tidy is on PATH).
 statusbar_register_clang_tidy_target()
 
-# docs-sm: regenerate per-state-machine Markdown + SVG diagrams in each
-# submodule's docs/sm/ tree. Each SM gets one .md (transition table) and one
-# .svg (rendered from DOT via graphviz). Writes into the source tree
-# (intentional — these are committed alongside the SM definitions).
-set(_sm_render ${CMAKE_SOURCE_DIR}/cmake/sm-docs-render.sh)
-add_custom_target(
-  docs-sm
-  COMMAND ${_sm_render} $<TARGET_FILE:atdecc_sm_tool>
-          ${CMAKE_SOURCE_DIR}/avb/docs/sm/atdecc
-  COMMAND ${_sm_render} $<TARGET_FILE:avtp_sm_tool>
-          ${CMAKE_SOURCE_DIR}/avb/docs/sm/avtp
-  COMMAND ${_sm_render} $<TARGET_FILE:gptp_sm_tool>
-          ${CMAKE_SOURCE_DIR}/avb/docs/sm/gptp
-  COMMAND ${_sm_render} $<TARGET_FILE:srp_sm_tool>
-          ${CMAKE_SOURCE_DIR}/avb/docs/sm/srp
-  COMMAND ${_sm_render} $<TARGET_FILE:nanoavb_supervisor_sm_tool>
-          ${CMAKE_SOURCE_DIR}/avb/docs/sm/nanoavb
-  COMMAND ${_sm_render} $<TARGET_FILE:stun_sm_tool>
-          ${CMAKE_SOURCE_DIR}/avb/docs/sm/stun
-  DEPENDS atdecc_sm_tool avtp_sm_tool gptp_sm_tool srp_sm_tool
-          nanoavb_supervisor_sm_tool stun_sm_tool
-  COMMENT
-    "Regenerating per-SM Markdown + SVG across all submodules (needs graphviz)"
-  VERBATIM USES_TERMINAL)
+# docs-sm: regenerate per-state-machine Markdown + SVG in each package's
+# docs/sm/ tree (written into the source tree intentionally — the outputs are
+# committed beside the SM definitions). Packages registered their SM tools +
+# docs directories via statusbar_register_sm_doc() while their subdirectories
+# configured; building the target from that registry means this file needs no
+# knowledge of which package owns which tool. The include() takes this
+# workspace's own module.cmake definition of the registry helpers, independent
+# of whichever package copy loaded last.
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/module.cmake)
+statusbar_register_sm_docs_target(${CMAKE_SOURCE_DIR}/cmake/sm-docs-render.sh)
