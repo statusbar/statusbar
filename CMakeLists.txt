@@ -8,20 +8,16 @@ project(statusbar-umbrella LANGUAGES CXX)
 set(STATUSBAR_AGGREGATE_BUILD ON)
 include(CTest)
 
-# Project build-helper modules: define statusbar_register_{fuzz,coverage,
-# clang_tidy}_targets() and the sanitizer/coverage/fuzzing options. These are
-# project build logic, NOT compiler selection, so the project provides them
-# itself rather than depending on a particular CMAKE_TOOLCHAIN_FILE to pull them
-# in. The bundled cmake/toolchain-clang.cmake deliberately does NOT include them
-# (see its NOTE) — but each package's own toolchain copy still does, so the
-# COMMAND guard makes this a no-op when a build configures with a package
-# toolchain, while defining the helpers under the bundled one or any other.
+# The shared build machinery: cmake/module.cmake (a symlink into core/cmake, the
+# single source of truth) defines statusbar_add_module, the package boilerplate
+# helpers and — via its own guarded includes — the
+# sanitizer/coverage/fuzzing/clang-tidy options. Included HERE, at the top
+# scope, so the option modules' flag appends apply to every aggregated package.
+# Standalone dependents get the very same file from find_package(statusbar-core)
+# instead (installed, or staged in core's build tree); no toolchain includes it
+# (toolchains are compiler selection only).
 if(NOT COMMAND statusbar_register_fuzz_targets)
-  list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-  include(sanitizers)
-  include(coverage)
-  include(fuzzing)
-  include(clang_tidy)
+  include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/module.cmake)
 endif()
 
 # Build every library and tool without C++ exceptions. The codebase routes all
@@ -248,4 +244,4 @@ statusbar_register_clang_tidy_target()
 # workspace's own module.cmake definition of the registry helpers, independent
 # of whichever package copy loaded last.
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/module.cmake)
-statusbar_register_sm_docs_target(${CMAKE_SOURCE_DIR}/cmake/sm-docs-render.sh)
+statusbar_register_sm_docs_target()
