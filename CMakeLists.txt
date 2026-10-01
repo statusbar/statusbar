@@ -10,53 +10,16 @@ include(CTest)
 
 # The shared build machinery: cmake/module.cmake (a symlink into core/cmake, the
 # single source of truth) defines statusbar_add_module, the package boilerplate
-# helpers and — via its own guarded includes — the
-# sanitizer/coverage/fuzzing/clang-tidy options. Included HERE, at the top
-# scope, so the option modules' flag appends apply to every aggregated package.
-# Standalone dependents get the very same file from find_package(statusbar-core)
-# instead (installed, or staged in core's build tree); no toolchain includes it
-# (toolchains are compiler selection only).
+# helpers and — via its own guarded includes — the whole-build switches
+# (ENABLE_NO_EXCEPTIONS, ENABLE_HARDENING, ENABLE_PACKET_QDISC_BYPASS; see
+# core/cmake/build_switches.cmake) and the sanitizer/coverage/fuzzing/clang-tidy
+# options. Included HERE, at the top scope, so the option modules' flag appends
+# apply to every aggregated package. Standalone dependents get the very same
+# file from find_package(statusbar-core) instead (installed, or staged in core's
+# build tree); no toolchain includes it (toolchains are compiler selection
+# only).
 if(NOT COMMAND statusbar_register_fuzz_targets)
   include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/module.cmake)
-endif()
-
-# Build every library and tool without C++ exceptions. The codebase routes all
-# error paths through statusbar::throw_or_abort (which logs + std::terminate()s
-# instead of throwing when exceptions are off), so this compiles cleanly. The
-# aggregate test binary is excluded: its EXPECT_* assertions and a handful of
-# throw-verification tests rely on exceptions and always run with them on.
-option(ENABLE_NO_EXCEPTIONS
-       "Build libraries and tools with -fno-exceptions (test binary excluded)"
-       OFF)
-if(ENABLE_NO_EXCEPTIONS)
-  add_compile_options(-fno-exceptions)
-endif()
-
-# Hardened build: make STATUSBAR_ASSERT() emit a real runtime check that traps
-# on a violated precondition, even in release. Defense in depth for production
-# deployments that prefer fail-closed over the default release behaviour
-# ([[assume]], i.e. undefined behaviour on a violated precondition). OFF by
-# default; STATUSBAR_HARDENED is otherwise undefined.
-option(
-  ENABLE_HARDENING
-  "Make STATUSBAR_ASSERT trap on violation in all builds (defense in depth)"
-  OFF)
-if(ENABLE_HARDENING)
-  add_compile_definitions(STATUSBAR_HARDENED)
-endif()
-
-# PACKET_QDISC_BYPASS lowers stream-TX latency but makes egress INVISIBLE to
-# local AF_PACKET capture on the sending host (it skips dev_queue_xmit_nit). ON
-# by default. Turn OFF to build a "full local visibility" node (e.g. a Pi used
-# as an on-box ATDECC controller/monitor): all TX then goes through the normal
-# qdisc path so tcpdump/monitor/controller on the same host observe our own
-# stream + control egress, and RawnetContext sockets are opened promiscuous.
-option(
-  ENABLE_PACKET_QDISC_BYPASS
-  "Use PACKET_QDISC_BYPASS for opted-in TX sockets (OFF = all TX visible to local capture + promiscuous RX)"
-  ON)
-if(NOT ENABLE_PACKET_QDISC_BYPASS)
-  add_compile_definitions(STATUSBAR_NO_QDISC_BYPASS)
 endif()
 
 define_property(

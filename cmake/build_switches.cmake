@@ -1,0 +1,1 @@
+../core/cmake/build_switches.cmake

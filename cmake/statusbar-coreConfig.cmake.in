@@ -1,7 +1,0 @@
-# Generated CMake package config for statusbar-core.
-@PACKAGE_INIT@
-
-include(CMakeFindDependencyMacro)
-
-include("${CMAKE_CURRENT_LIST_DIR}/statusbar-coreTargets.cmake")
-check_required_components(statusbar-core)
