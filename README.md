@@ -238,17 +238,22 @@ Reproducible `.deb` builds for each library run in a Debian container (needs
 ./container-fuzz.sh              # run the libFuzzer campaigns (crypto, avb)
 ```
 
-On a Debian-based machine the same packages can be built natively, for that
-machine, with no container at all. `local-build-debs.sh` walks the packages in
-dependency order, stages each one's install under `build-debs/stage/` so the
-next package's `find_package()` finds it, and writes the `.deb` files to
-`deb-output-local/` (kept apart from the container builds, whose file names
-are identical). It needs no root to build; `--install-prereqs` runs the one
-`apt-get install` for the toolchain and development libraries.
+On a Debian- or Fedora/RHEL-based machine the same packages can be built
+natively, for that machine, with no container at all. `local-build-debs.sh`
+and `local-build-rpms.sh` (one script, `local-build-packages.sh`, with the
+format fixed) walk the packages in dependency order, stage each one's install
+under `build-debs/stage/` (or `build-rpms/stage/`) so the next package's
+`find_package()` finds it, and write the packages to `deb-output-local/` or
+`rpm-output-local/` (kept apart from the container builds, whose file names
+are identical). They need no root to build; `--install-prereqs` runs the one
+`apt-get install` / `dnf install` for the toolchain and development
+libraries. A package that opts out of RPMs (`NO_RPM`, e.g. a private
+DEB-only extension) is skipped by the rpm build.
 
 ```sh
-./local-build-debs.sh --install-prereqs   # first time: install the prerequisites
-./local-build-debs.sh                     # build every package's .deb natively
+./local-build-debs.sh --install-prereqs   # Debian: first time, install the prerequisites
+./local-build-debs.sh                     # Debian: build every package's .deb natively
+./local-build-rpms.sh                     # Fedora/RHEL: build every package's .rpm natively
 ./local-build-debs.sh avb                 # avb and its dependencies only
 STATUSBAR_TOOLCHAIN=gcc ./local-build-debs.sh   # gcc/libstdc++ instead of clang/libc++
 ```
