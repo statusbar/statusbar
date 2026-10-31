@@ -9,8 +9,9 @@
 #
 # It then runs core's check-block-statements.sh on the staged C++ -- the
 # house rule that bounds the statements in one block, enforced only on the
-# lines a commit touches. The script lives in core and is reached from a
-# sibling package through ../core; it exits 0 without checking when the
+# lines a commit touches. The script lives in core and checks whichever repo
+# the hook runs in; its absolute path is written into each hook here, so no
+# hook guesses at a relative one. It exits 0 without checking when the
 # clang-tidy plugin or a configured build directory is missing, so the hook
 # stays quiet on a machine that has not built them.
 #
@@ -20,11 +21,13 @@ set -e
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
+GATE="$ROOT/core/check-block-statements.sh"
 
 write_hook() {
     hooks_dir=$1
     mkdir -p "$hooks_dir"
-    cat > "$hooks_dir/pre-commit" <<'EOF'
+    {
+        cat <<'EOF'
 #! /bin/sh
 # Installed by install-hooks.sh — edit there, not here.
 # Refuse the commit if reformat.sh --check reports formatting drift.
@@ -38,19 +41,20 @@ if ! sh reformat.sh --check; then
     echo "Fix with 'sh reformat.sh', restage, and commit again." >&2
     exit 1
 fi
-# The block-statements house rule, on the staged C++ only. In core the script
-# is alongside; in a sibling package it comes from ../core.
-for gate in ./check-block-statements.sh ../core/check-block-statements.sh; do
-    [ -x "$gate" ] || continue
-    if ! sh "$gate"; then
-        echo "" >&2
-        echo "pre-commit: block-statements check failed." >&2
-        echo "Split the block, or mark its brace with a reason, and restage." >&2
-        exit 1
-    fi
-    break
-done
+# The block-statements house rule, on the staged C++ only. The gate lives in
+# core and checks the repo this hook runs in.
 EOF
+        printf "GATE='%s'\n" "$GATE"
+        cat <<'EOF'
+[ -f "$GATE" ] || exit 0
+if ! sh "$GATE"; then
+    echo "" >&2
+    echo "pre-commit: block-statements check failed." >&2
+    echo "Split the block, or mark its brace with a reason, and restage." >&2
+    exit 1
+fi
+EOF
+    } > "$hooks_dir/pre-commit"
     chmod +x "$hooks_dir/pre-commit"
 }
 
