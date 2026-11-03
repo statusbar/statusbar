@@ -41,11 +41,12 @@ TARGET_ARCH="${TARGET_PLATFORM##*/}"
 
 # Packages that have at least one *_fuzzer.cpp under them. Keep in sync with
 # the actual sources (find . -name '*_fuzzer.cpp').
-FUZZ_PKGS="crypto avb"
+FUZZ_PKGS="core crypto avb"
 
 # Transitive runtime+dev deps for each package — must mirror container-build.sh.
 tdeps() {
   case "$1" in
+    core) echo "" ;;
     crypto) echo "core" ;;
     avb) echo "core crypto audio" ;;
     *) echo "" ;;
