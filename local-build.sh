@@ -29,4 +29,5 @@ esac
 cmake -G Ninja -B "$BUILD_DIR" -S . \
   --toolchain "cmake/toolchain-$STATUSBAR_TOOLCHAIN.cmake" "$@"
 cmake --build "$BUILD_DIR"
-ctest --test-dir "$BUILD_DIR"
+# A hung test fails instead of blocking the run (none of the suites takes a minute).
+ctest --test-dir "$BUILD_DIR" --timeout 300
