@@ -180,10 +180,11 @@ endif()
 
 # The functional tests of every package (a module's FUNCTIONAL_TESTS), in one
 # aggregate binary of their own. It is built with everything else, so the
-# functional tests always compile; each is a ctest entry labelled "functional",
-# which the test runs of a build leave out (local-build.sh, the test presets).
-# They run when committing: core/run-functional-tests.sh, from the pre-commit
-# hook. Names are derived as for the unit tests above.
+# functional tests always compile; each is a ctest entry labelled "functional".
+# A build runs them as a second test run of their own, after the unit tests
+# (local-build.sh; the <name>-functional test presets), and
+# STATUSBAR_SKIP_FUNCTIONAL_TESTS=1 turns that run off without touching the unit
+# tests. Names are derived as for the unit tests above.
 get_property(STATUSBAR_FUNCTIONAL_TEST_FILES_ABS GLOBAL
              PROPERTY STATUSBAR_FUNCTIONAL_TEST_FILES)
 set(STATUSBAR_FUNCTIONAL_TEST_FILES "")

@@ -79,6 +79,30 @@
       "configurePreset": "gcc-dev",
       "output": { "outputOnFailure": true },
       "filter": { "exclude": { "label": "functional" } }
+    },
+    {
+      "name": "default-functional",
+      "configurePreset": "default",
+      "output": { "outputOnFailure": true },
+      "filter": { "include": { "label": "functional" } }
+    },
+    {
+      "name": "dev-functional",
+      "configurePreset": "dev",
+      "output": { "outputOnFailure": true },
+      "filter": { "include": { "label": "functional" } }
+    },
+    {
+      "name": "gcc-functional",
+      "configurePreset": "gcc",
+      "output": { "outputOnFailure": true },
+      "filter": { "include": { "label": "functional" } }
+    },
+    {
+      "name": "gcc-dev-functional",
+      "configurePreset": "gcc-dev",
+      "output": { "outputOnFailure": true },
+      "filter": { "include": { "label": "functional" } }
     }
   ]
 }
