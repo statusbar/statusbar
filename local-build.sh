@@ -29,5 +29,10 @@ esac
 cmake -G Ninja -B "$BUILD_DIR" -S . \
   --toolchain "cmake/toolchain-$STATUSBAR_TOOLCHAIN.cmake" "$@"
 cmake --build "$BUILD_DIR"
+# Everything is built, the functional tests among it, and the unit tests are
+# run: they test logic, open no socket and wait for nothing, so a loaded build
+# host cannot fail them. The functional tests (real sockets, a real kernel) are
+# not run here. They run when committing, from the pre-commit hook
+# (install-hooks.sh), or by hand with: ctest --test-dir "$BUILD_DIR" -L functional
 # A hung test fails instead of blocking the run (none of the suites takes a minute).
-ctest --test-dir "$BUILD_DIR" --timeout 300
+ctest --test-dir "$BUILD_DIR" --timeout 300 -LE functional

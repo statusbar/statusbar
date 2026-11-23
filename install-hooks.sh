@@ -15,6 +15,13 @@
 # clang-tidy plugin or a configured build directory is missing, so the hook
 # stays quiet on a machine that has not built them.
 #
+# Last it runs the repo's functional tests, with core's
+# run-functional-tests.sh: the tests on real sockets and a real kernel, which
+# CI builds and does not run (CI runs the unit tests). They run when the staged
+# change touches C++ or CMake and a configured build directory is there to run
+# them from; without one the script says so and lets the commit through.
+# STATUSBAR_SKIP_FUNCTIONAL_TESTS=1 skips them for one commit.
+#
 # Re-run after cloning or after `git submodule update --init`.
 
 set -e
@@ -22,6 +29,7 @@ set -e
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 GATE="$ROOT/core/check-block-statements.sh"
+FUNCTIONAL="$ROOT/core/run-functional-tests.sh"
 
 write_hook() {
     hooks_dir=$1
@@ -46,11 +54,20 @@ fi
 EOF
         printf "GATE='%s'\n" "$GATE"
         cat <<'EOF'
-[ -f "$GATE" ] || exit 0
-if ! sh "$GATE"; then
+if [ -f "$GATE" ] && ! sh "$GATE"; then
     echo "" >&2
     echo "pre-commit: block-statements check failed." >&2
     echo "Split the block, or mark its brace with a reason, and restage." >&2
+    exit 1
+fi
+# The functional tests of the repo this hook runs in: built by CI, run here.
+EOF
+        printf "FUNCTIONAL='%s'\n" "$FUNCTIONAL"
+        cat <<'EOF'
+if [ -f "$FUNCTIONAL" ] && ! sh "$FUNCTIONAL"; then
+    echo "" >&2
+    echo "pre-commit: functional tests failed." >&2
+    echo "Fix them, or commit once without them: STATUSBAR_SKIP_FUNCTIONAL_TESTS=1 git commit ..." >&2
     exit 1
 fi
 EOF
