@@ -44,16 +44,36 @@
     {
       "name": "asan",
       "displayName": "Aggregate (AddressSanitizer)",
+      "description": "The dev build under AddressSanitizer: a read or write outside an object, a use after free and, on Linux, a leak fail the test that does it. Its own build directory; local-build-asan.sh builds and tests it in one command.",
       "inherits": "dev",
       "binaryDir": "${sourceDir}/build-asan",
       "cacheVariables": { "ENABLE_ASAN": "ON" }
+    },
+    {
+      "name": "ubsan",
+      "displayName": "Aggregate (UndefinedBehaviorSanitizer)",
+      "description": "The dev build under UndefinedBehaviorSanitizer: signed overflow, a misaligned or null access, a shift out of range, an enum or bool with no valid value fail the test that does it. Its own build directory; local-build-ubsan.sh builds and tests it in one command.",
+      "inherits": "dev",
+      "binaryDir": "${sourceDir}/build-ubsan",
+      "cacheVariables": { "ENABLE_UBSAN": "ON" }
+    },
+    {
+      "name": "tsan",
+      "displayName": "Aggregate (ThreadSanitizer)",
+      "description": "The dev build under ThreadSanitizer: a data race between two threads fails the test that has it. Its own build directory; STATUSBAR_SANITIZER=tsan ./local-build.sh builds and tests it in one command.",
+      "inherits": "dev",
+      "binaryDir": "${sourceDir}/build-tsan",
+      "cacheVariables": { "ENABLE_TSAN": "ON" }
     }
   ],
   "buildPresets": [
     { "name": "default", "configurePreset": "default" },
     { "name": "dev", "configurePreset": "dev" },
     { "name": "gcc", "configurePreset": "gcc" },
-    { "name": "gcc-dev", "configurePreset": "gcc-dev" }
+    { "name": "gcc-dev", "configurePreset": "gcc-dev" },
+    { "name": "asan", "configurePreset": "asan" },
+    { "name": "ubsan", "configurePreset": "ubsan" },
+    { "name": "tsan", "configurePreset": "tsan" }
   ],
   "testPresets": [
     {
@@ -81,6 +101,24 @@
       "filter": { "exclude": { "label": "functional" } }
     },
     {
+      "name": "asan",
+      "configurePreset": "asan",
+      "output": { "outputOnFailure": true },
+      "filter": { "exclude": { "label": "functional" } }
+    },
+    {
+      "name": "ubsan",
+      "configurePreset": "ubsan",
+      "output": { "outputOnFailure": true },
+      "filter": { "exclude": { "label": "functional" } }
+    },
+    {
+      "name": "tsan",
+      "configurePreset": "tsan",
+      "output": { "outputOnFailure": true },
+      "filter": { "exclude": { "label": "functional" } }
+    },
+    {
       "name": "default-functional",
       "configurePreset": "default",
       "output": { "outputOnFailure": true },
@@ -101,6 +139,24 @@
     {
       "name": "gcc-dev-functional",
       "configurePreset": "gcc-dev",
+      "output": { "outputOnFailure": true },
+      "filter": { "include": { "label": "functional" } }
+    },
+    {
+      "name": "asan-functional",
+      "configurePreset": "asan",
+      "output": { "outputOnFailure": true },
+      "filter": { "include": { "label": "functional" } }
+    },
+    {
+      "name": "ubsan-functional",
+      "configurePreset": "ubsan",
+      "output": { "outputOnFailure": true },
+      "filter": { "include": { "label": "functional" } }
+    },
+    {
+      "name": "tsan-functional",
+      "configurePreset": "tsan",
       "output": { "outputOnFailure": true },
       "filter": { "include": { "label": "functional" } }
     }

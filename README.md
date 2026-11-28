@@ -25,10 +25,11 @@ cd statusbar
 # Build every library + run the full test suite (into ./build)
 ./local-build.sh
 
-# Sanitizers — mutually exclusive, each in its own build dir
-BUILD_DIR=build-asan  ./local-build.sh -DENABLE_ASAN=ON     # AddressSanitizer
-BUILD_DIR=build-ubsan ./local-build.sh -DENABLE_UBSAN=ON    # UndefinedBehaviorSanitizer
-BUILD_DIR=build-tsan  ./local-build.sh -DENABLE_TSAN=ON     # ThreadSanitizer
+# The same build and tests under a sanitizer, each in its own build dir
+./local-build-asan.sh                       # AddressSanitizer, into ./build-asan
+./local-build-ubsan.sh                      # UndefinedBehaviorSanitizer, into ./build-ubsan
+STATUSBAR_SANITIZER=tsan ./local-build.sh   # ThreadSanitizer, into ./build-tsan
+./container-sanitize.sh asan                # on Linux, in the Debian builder container
 
 # Fuzzing (Linux; libFuzzer is on by default with Clang)
 BUILD_DIR=build-fuzz ./local-build.sh -DENABLE_FUZZING=ON
@@ -176,23 +177,45 @@ Each package's development package also installs them, as
 
 ### Sanitizers and coverage
 
-The Clang sanitizers are off by default and **mutually exclusive** — each
-changes the ABI/runtime, so give each its own build directory and re-run the
-tests there (configuring two at once is a hard error):
+The sanitizers are off by default and **mutually exclusive**: each changes
+every object, so each has its own build directory, and configuring two at
+once is a hard error. A test that trips one fails, with the stack of the
+fault in its output.
+
+| Sanitizer | Finds | One command | Build directory |
+| --- | --- | --- | --- |
+| AddressSanitizer | a read or write outside an object, a use after free, a leak (Linux) | `./local-build-asan.sh` | `build-asan` |
+| UndefinedBehaviorSanitizer | signed overflow, a misaligned or null access, a shift out of range, an enum or bool with no valid value | `./local-build-ubsan.sh` | `build-ubsan` |
+| ThreadSanitizer | a data race between two threads | `STATUSBAR_SANITIZER=tsan ./local-build.sh` | `build-tsan` |
+
+The two wrappers are `local-build.sh` with `STATUSBAR_SANITIZER` set, so
+every knob of `local-build.sh` applies: `STATUSBAR_TOOLCHAIN=gcc`,
+`STATUSBAR_SKIP_FUNCTIONAL_TESTS=1`, `BUILD_DIR`, extra `-D` flags.
+`ASAN_OPTIONS`, `UBSAN_OPTIONS` and `TSAN_OPTIONS` reach the tests.
+
+On Linux from any host with a container engine, in the image the packages
+are built in:
 
 ```sh
-# AddressSanitizer
-cmake -G Ninja -B build-asan -S . --toolchain cmake/toolchain-clang.cmake -DENABLE_ASAN=ON
-cmake --build build-asan && ctest --test-dir build-asan
-
-# UndefinedBehaviorSanitizer (built with -fno-sanitize-recover, so it aborts)
-cmake -G Ninja -B build-ubsan -S . --toolchain cmake/toolchain-clang.cmake -DENABLE_UBSAN=ON
-cmake --build build-ubsan && ctest --test-dir build-ubsan
-
-# ThreadSanitizer
-cmake -G Ninja -B build-tsan -S . --toolchain cmake/toolchain-clang.cmake -DENABLE_TSAN=ON
-cmake --build build-tsan && ctest --test-dir build-tsan
+./container-sanitize.sh          # asan
+./container-sanitize.sh ubsan
 ```
+
+It runs the unit tests; `STATUSBAR_SKIP_FUNCTIONAL_TESTS=0` adds the
+functional ones. The build tree and the compiler cache live in container
+volumes, so a second run compiles only what changed. It builds for the host's
+own architecture: the sanitizer runtimes do not work under user-mode
+emulation.
+
+In an IDE, or by hand, the `asan`, `ubsan` and `tsan` CMake presets are the
+same builds:
+
+```sh
+cmake --preset asan && cmake --build --preset asan && ctest --preset asan
+```
+
+UBSan is built with `-fno-sanitize-recover`, so the first fault ends the
+test.
 
 Code coverage (LLVM source-based; needs `llvm-profdata` / `llvm-cov`):
 
